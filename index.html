@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestão Financeira - Retiro R119</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #121212; color: #E2E8F0; }
+        .container-card { background-color: #1E1E1E; border-radius: 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3); }
+        .input-field { background-color: #2D2D2D; border: 1px solid #4B5563; color: white; padding: 0.75rem; border-radius: 0.5rem; width: 100%; outline: none; }
+        .input-field:focus { border-color: #1DB954; }
+        .btn-primary { background-color: #1DB954; color: white; padding: 0.75rem 1.5rem; border-radius: 9999px; font-weight: 700; width: 100%; transition: 0.2s; cursor: pointer; border: none; }
+        .btn-primary:hover { background-color: #1ed760; }
+        .btn-secondary { background-color: #3B82F6; color: white; padding: 0.75rem 1.5rem; border-radius: 9999px; font-weight: 700; width: 100%; transition: 0.2s; cursor: pointer; border: none; }
+        .btn-secondary:hover { background-color: #2563EB; }
+        .btn-whatsapp { background-color: #25D366; color: white; padding: 0.75rem 1.5rem; border-radius: 8px; font-weight: bold; width: 100%; display: block; text-align: center; margin-top: 10px; text-decoration: none;}
+        .btn-google { background-color: #ffffff; color: #333; padding: 0.5rem 1rem; border-radius: 8px; font-weight: 600; display: flex; align-items: center; gap: 8px; transition: 0.2s; cursor: pointer; border: none; }
+        .btn-google:hover { background-color: #f1f1f1; }
+        .expandable-row { cursor: pointer; transition: background-color 0.2s; }
+        .expandable-row:hover { background-color: #2d3748; }
+        .history-row { background-color: #1a202c; }
+    </style>
+</head>
+<body class="p-4 sm:p-8 flex flex-col items-center min-h-screen">
+    
+    <main class="w-full max-w-6xl space-y-6">
+        
+        <!-- Cabeçalho e Login -->
+        <header class="flex flex-col md:flex-row justify-between items-center bg-gray-900 p-6 rounded-xl border border-gray-800 space-y-4 md:space-y-0">
+            <div>
+                <h1 class="text-2xl sm:text-3xl font-bold text-white">Pagamento do Retiro</h1>
+                <p class="text-sm text-gray-400 mt-1">Gestão Financeira - Célula R119</p>
+            </div>
+            
+            <div id="auth-section" class="flex flex-col items-end">
+                <button id="btn-login" class="btn-google">
+                    <img src="https://www.svgrepo.com/show/475656/google-color.svg" class="w-5 h-5" alt="Google">
+                    Acesso da Liderança
+                </button>
+                <div id="user-info" class="hidden flex items-center gap-4">
+                    <span id="user-email" class="text-sm text-green-400 font-semibold"></span>
+                    <button id="btn-logout" class="text-sm text-red-400 hover:underline">Sair</button>
+                </div>
+            </div>
+        </header>
+
+        <!-- KPIs Gerais -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="container-card p-5 border-l-4 border-green-500 flex justify-between items-center">
+                <div>
+                    <p class="text-sm text-gray-400">Total Arrecadado (R119)</p>
+                    <h3 id="kpi-total" class="text-3xl font-bold text-white">R$ 0,00</h3>
+                </div>
+                <div class="text-green-500 text-4xl">💰</div>
+            </div>
+            <div class="container-card p-5 border-l-4 border-blue-500">
+                <p class="text-sm text-gray-400 mb-2">Progresso Geral da Célula</p>
+                <div class="flex items-center space-x-3">
+                    <div class="w-full bg-gray-700 rounded-full h-3">
+                        <div id="kpi-progress-bar" class="bg-blue-500 h-3 rounded-full transition-all duration-500" style="width: 0%"></div>
+                    </div>
+                    <span id="kpi-progress-text" class="text-sm font-bold text-white">0%</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            <!-- Coluna 1: Formulários (Só aparecem se logado) -->
+            <div id="form-container" class="hidden lg:col-span-1 space-y-6 self-start">
+                
+                <!-- Cadastrar Novo Pagamento -->
+                <div class="container-card p-6 space-y-4">
+                    <h2 class="text-xl font-bold text-white border-b border-gray-700 pb-2">Novo Pagamento</h2>
+                    <form id="form-pagamento" class="space-y-4">
+                        <div>
+                            <label class="block text-sm text-gray-400 mb-1">Nome do Membro</label>
+                            <input type="text" id="nome" class="input-field" placeholder="Ex: Mariana" required>
+                        </div>
+                        <div>
+                            <label class="block text-sm text-gray-400 mb-1">WhatsApp (Opcional)</label>
+                            <input type="tel" id="whatsapp" class="input-field" placeholder="91999999999">
+                        </div>
+                        <div>
+                            <label class="block text-sm text-gray-400 mb-1">Valor Pago (R$)</label>
+                            <input type="number" id="valor" class="input-field" placeholder="Ex: 65" step="0.01" required>
+                        </div>
+                        <div>
+                            <label class="block text-sm text-gray-400 mb-1">Forma</label>
+                            <select id="metodo" class="input-field" required>
+                                <option value="PIX">PIX</option>
+                                <option value="Dinheiro">Dinheiro</option>
+                            </select>
+                        </div>
+                        <input type="hidden" id="edit-pagamento-id" value="">
+                        <button type="submit" id="btn-submit-pagamento" class="btn-primary mt-4">Registrar Pagamento</button>
+                        <button type="button" id="btn-cancel-edit" class="hidden w-full mt-2 py-2 border border-gray-500 rounded-lg text-gray-300 hover:bg-gray-700 transition">Cancelar Edição</button>
+                    </form>
+
+                    <!-- Área WhatsApp -->
+                    <div id="area-whatsapp" class="hidden mt-6 p-4 bg-gray-800 rounded-lg text-center border border-gray-600">
+                        <p class="text-green-400 font-bold mb-2">✅ Salvo no Sistema!</p>
+                        <a id="btn-enviar-wa" href="#" target="_blank" class="btn-whatsapp">📲 Enviar via WhatsApp</a>
+                        <button id="btn-novo-registro" class="w-full mt-3 py-2 border border-gray-500 rounded-lg text-gray-300 hover:bg-gray-700 transition">Fechar</button>
+                    </div>
+                </div>
+
+                <!-- Adicionar Membro na Célula -->
+                <div class="container-card p-6 space-y-4">
+                    <h2 class="text-xl font-bold text-white border-b border-gray-700 pb-2">Adicionar à Célula</h2>
+                    <form id="form-membro" class="space-y-4">
+                        <div>
+                            <label class="block text-sm text-gray-400 mb-1">Nome do Membro</label>
+                            <input type="text" id="novo-membro-nome" class="input-field" placeholder="Ex: Carlos" required>
+                        </div>
+                        <button type="submit" class="btn-secondary">Cadastrar na Célula</button>
+                    </form>
+                </div>
+
+            </div>
+
+            <!-- Coluna 2: Tabela de Status (Visível para todos) -->
+            <div id="table-container" class="container-card p-6 lg:col-span-3 space-y-6">
+                <div class="flex justify-between items-center border-b border-gray-700 pb-2">
+                    <h2 class="text-xl font-bold text-white">Acompanhamento Individual</h2>
+                    <span class="text-sm bg-gray-800 px-3 py-1 rounded-full text-gray-300 border border-gray-700">Meta: R$ 450,00</span>
+                </div>
+                
+                <p class="text-xs text-gray-400 mb-2">💡 Clique no nome do membro para ver o histórico ou gerenciar pagamentos.</p>
+                
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="border-b border-gray-700 text-gray-400 text-sm bg-gray-800">
+                                <th class="py-3 px-3 rounded-tl-lg">Membro</th>
+                                <th class="py-3 px-3 text-center">Total Pago</th>
+                                <th class="py-3 px-3 text-center">Falta</th>
+                                <th class="py-3 px-3 text-center rounded-tr-lg">Progresso</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabela-status" class="text-gray-200 text-sm">
+                            <!-- Inserido via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- Scripts -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, updateDoc, doc, onSnapshot, query, orderBy, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDhleRcRHjEUmRRn638R5-L4B83t0HLLT4",
+            authDomain: "gestao-de-retiro---redes.firebaseapp.com",
+            projectId: "gestao-de-retiro---redes",
+            storageBucket: "gestao-de-retiro---redes.firebasestorage.app",
+            messagingSenderId: "1035765137992",
+            appId: "1:1035765137992:web:faafa994c696ad0467ce7d",
+            measurementId: "G-C0L89FE4X1"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const provider = new GoogleAuthProvider();
+        
+        const META_RETIRO = 450.00;
+        let isLider = false;
+        let todosPagamentos = [];
+        let todosMembros = [];
+
+        const btnLogin = document.getElementById('btn-login');
+        const btnLogout = document.getElementById('btn-logout');
+        const userInfo = document.getElementById('user-info');
+        const userEmail = document.getElementById('user-email');
+        const formContainer = document.getElementById('form-container');
+        const tableContainer = document.getElementById('table-container');
+
+        btnLogin.addEventListener('click', async () => {
+            try { await signInWithPopup(auth, provider); } 
+            catch (error) { console.error("Erro no login", error); alert("Erro ao logar."); }
+        });
+
+        btnLogout.addEventListener('click', () => { signOut(auth); });
+
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                isLider = true;
+                btnLogin.classList.add('hidden');
+                userInfo.classList.remove('hidden');
+                userEmail.textContent = user.email;
+                formContainer.classList.remove('hidden');
+                tableContainer.classList.replace('lg:col-span-3', 'lg:col-span-2');
+            } else {
+                isLider = false;
+                btnLogin.classList.remove('hidden');
+                userInfo.classList.add('hidden');
+                formContainer.classList.add('hidden');
+                tableContainer.classList.replace('lg:col-span-2', 'lg:col-span-3');
+            }
+            atualizarTabela();
+        });
+
+        // Escutar Pagamentos
+        onSnapshot(query(collection(db, "pagamentos_retiro"), orderBy("data", "desc")), (snapshot) => {
+            todosPagamentos = [];
+            snapshot.forEach((doc) => {
+                todosPagamentos.push({ id: doc.id, ...doc.data() });
+            });
+            atualizarTabela();
+        });
+
+        // Escutar Membros da Célula
+        onSnapshot(query(collection(db, "membros_celula"), orderBy("nome", "asc")), (snapshot) => {
+            todosMembros = [];
+            snapshot.forEach((doc) => {
+                todosMembros.push({ id: doc.id, ...doc.data() });
+            });
+            atualizarTabela();
+        });
+
+        // Cadastrar Novo Membro
+        const formMembro = document.getElementById('form-membro');
+        formMembro.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const nomeMembro = document.getElementById('novo-membro-nome').value.trim();
+            try {
+                await addDoc(collection(db, "membros_celula"), { nome: nomeMembro });
+                document.getElementById('novo-membro-nome').value = '';
+                alert("Membro adicionado à célula com sucesso!");
+            } catch (error) {
+                console.error("Erro ao cadastrar membro:", error);
+                alert("Erro ao cadastrar membro.");
+            }
+        });
+
+        // Salvar ou Editar Pagamento
+        const formPagamento = document.getElementById('form-pagamento');
+        const areaWhatsapp = document.getElementById('area-whatsapp');
+        const btnEnviarWa = document.getElementById('btn-enviar-wa');
+        const editPagamentoId = document.getElementById('edit-pagamento-id');
+        const btnSubmitPagamento = document.getElementById('btn-submit-pagamento');
+        const btnCancelEdit = document.getElementById('btn-cancel-edit');
+
+        formPagamento.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const nome = document.getElementById('nome').value.trim();
+            const whatsapp = document.getElementById('whatsapp').value.replace(/\D/g, '');
+            const valor = parseFloat(document.getElementById('valor').value);
+            const metodo = document.getElementById('metodo').value;
+            const idEditando = editPagamentoId.value;
+
+            try {
+                if (idEditando) {
+                    // Atualizar pagamento existente
+                    await updateDoc(doc(db, "pagamentos_retiro", idEditando), {
+                        nome: nome,
+                        whatsapp: whatsapp,
+                        valor: valor,
+                        metodo: metodo
+                    });
+                    alert("Pagamento atualizado com sucesso!");
+                    resetarFormularioEdicao();
+                } else {
+                    // Criar novo pagamento
+                    await addDoc(collection(db, "pagamentos_retiro"), {
+                        nome: nome,
+                        whatsapp: whatsapp,
+                        valor: valor,
+                        metodo: metodo,
+                        celula: "R119",
+                        data: new Date().toISOString()
+                    });
+
+                    // Garantir que o membro também conste na lista de membros da célula
+                    const existeNaLista = todosMembros.some(m => m.nome.toLowerCase() === nome.toLowerCase());
+                    if (!existeNaLista) {
+                        await addDoc(collection(db, "membros_celula"), { nome: nome });
+                    }
+
+                    if (whatsapp) {
+                        const totalJaPago = todosPagamentos
+                            .filter(p => p.nome.toLowerCase() === nome.toLowerCase())
+                            .reduce((acc, curr) => acc + curr.valor, 0) + valor; 
+                        const saldoDevedor = Math.max(META_RETIRO - totalJaPago, 0);
+
+                        const mensagem = `Olá, *${nome}*! \nConfirmamos o registro do seu pagamento para o *Retiro* da célula R119.\n\n- *Valor recebido:* R$ ${valor.toFixed(2).replace('.', ',')}\n- *Total já pago:* R$ ${totalJaPago.toFixed(2).replace('.', ',')} / R$ 450,00\n- *Falta:* R$ ${saldoDevedor.toFixed(2).replace('.', ',')}\n\nDeus abençoe!`;
+                        
+                        btnEnviarWa.href = `https://wa.me/55${whatsapp}?text=${encodeURIComponent(mensagem)}`;
+                        formPagamento.classList.add('hidden');
+                        areaWhatsapp.classList.remove('hidden');
+                    } else {
+                        formPagamento.reset();
+                        alert("Pagamento registrado com sucesso!");
+                    }
+                }
+            } catch (error) {
+                console.error("Erro ao salvar:", error); 
+                alert("Erro ao salvar.");
+            }
+        });
+
+        function resetarFormularioEdicao() {
+            formPagamento.reset();
+            editPagamentoId.value = '';
+            btnSubmitPagamento.textContent = "Registrar Pagamento";
+            btnCancelEdit.classList.add('hidden');
+        }
+
+        btnCancelEdit.addEventListener('click', resetarFormularioEdicao);
+
+        document.getElementById('btn-novo-registro').addEventListener('click', () => {
+            formPagamento.reset();
+            formPagamento.classList.remove('hidden');
+            areaWhatsapp.classList.add('hidden');
+        });
+
+        // Funções Globais de Ação
+        window.deletarPagamento = async (id) => {
+            if(confirm("Tem certeza que deseja apagar este pagamento?")) {
+                try {
+                    await deleteDoc(doc(db, "pagamentos_retiro", id));
+                } catch (error) {
+                    console.error("Erro ao deletar:", error); alert("Erro ao deletar.");
+                }
+            }
+        };
+
+        window.editarPagamento = (id, nome, whatsapp, valor, metodo) => {
+            document.getElementById('nome').value = nome;
+            document.getElementById('whatsapp').value = whatsapp || '';
+            document.getElementById('valor').value = valor;
+            document.getElementById('metodo').value = metodo;
+            editPagamentoId.value = id;
+            btnSubmitPagamento.textContent = "Salvar Alterações";
+            btnCancelEdit.classList.remove('hidden');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        };
+
+        window.toggleHistory = (nomeId) => {
+            const row = document.getElementById(`history-${nomeId}`);
+            if(row) row.classList.toggle('hidden');
+        };
+
+        function atualizarTabela() {
+            const tabelaStatus = document.getElementById('tabela-status');
+            tabelaStatus.innerHTML = '';
+            
+            let somaGeral = 0;
+            const resumoMembros = {};
+
+            // 1. Inicializar com todos os membros cadastrados na célula (mesmo quem não pagou)
+            todosMembros.forEach(m => {
+                const nomeKey = m.nome.toUpperCase();
+                resumoMembros[nomeKey] = { nomeReal: m.nome, total: 0, historico: [], whatsapp: m.whatsapp || '' };
+            });
+
+            // 2. Processar pagamentos e vincular aos membros
+            todosPagamentos.forEach(p => {
+                const nomeKey = p.nome.toUpperCase();
+                somaGeral += p.valor;
+                
+                if (!resumoMembros[nomeKey]) {
+                    resumoMembros[nomeKey] = { nomeReal: p.nome, total: 0, historico: [], whatsapp: p.whatsapp || '' };
+                }
+                resumoMembros[nomeKey].total += p.valor;
+                resumoMembros[nomeKey].historico.push(p);
+            });
+
+            // Atualizar KPIs
+            document.getElementById('kpi-total').textContent = `R$ ${somaGeral.toFixed(2)}`;
+            const qtdMembros = Object.keys(resumoMembros).length;
+            const metaTotalGeral = qtdMembros > 0 ? qtdMembros * META_RETIRO : META_RETIRO;
+            const progressoGeral = Math.min((somaGeral / metaTotalGeral) * 100, 100).toFixed(1);
+            
+            document.getElementById('kpi-progress-bar').style.width = `${progressoGeral}%`;
+            document.getElementById('kpi-progress-text').textContent = `${progressoGeral}%`;
+
+            // Gerar Linhas da Tabela
+            for (const [key, dados] of Object.entries(resumoMembros)) {
+                const falta = Math.max(META_RETIRO - dados.total, 0);
+                const porcentagem = Math.min((dados.total / META_RETIRO) * 100, 100).toFixed(0);
+                let corBarra = porcentagem == 100 ? 'bg-green-500' : 'bg-blue-500';
+                const idUnico = key.replace(/\s+/g, '');
+
+                const tr = document.createElement('tr');
+                tr.className = 'border-b border-gray-800 expandable-row';
+                tr.onclick = () => toggleHistory(idUnico);
+                tr.innerHTML = `
+                    <td class="py-4 px-3 font-semibold capitalize flex items-center gap-2">
+                        <span class="text-xs text-gray-500">▶</span> ${dados.nomeReal.toLowerCase()}
+                    </td>
+                    <td class="py-4 px-3 text-center text-green-400 font-bold">R$ ${dados.total.toFixed(2)}</td>
+                    <td class="py-4 px-3 text-center text-red-400">R$ ${falta.toFixed(2)}</td>
+                    <td class="py-4 px-3">
+                        <div class="flex items-center justify-center space-x-2">
+                            <div class="w-full bg-gray-700 rounded-full h-2.5 max-w-[80px]">
+                                <div class="${corBarra} h-2.5 rounded-full" style="width: ${porcentagem}%"></div>
+                            </div>
+                            <span class="text-xs text-gray-400 w-8 text-right">${porcentagem}%</span>
+                        </div>
+                    </td>
+                `;
+                tabelaStatus.appendChild(tr);
+
+                // Histórico e botões de editar/excluir
+                let linhasHistorico = '';
+                if (dados.historico.length === 0) {
+                    linhasHistorico = `<p class="text-xs text-gray-500 py-2">Nenhum pagamento registrado para este membro ainda.</p>`;
+                } else {
+                    dados.historico.forEach(p => {
+                        const dataFormatada = p.data ? new Date(p.data).toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit'}) : '--/--';
+                        const btnAcoes = isLider ? `
+                            <div class="flex gap-2">
+                                <button onclick="editarPagamento('${p.id}', '${p.nome}', '${p.whatsapp || ''}', ${p.valor}, '${p.metodo}')" class="text-blue-400 hover:text-blue-300 text-xs px-2 py-1 bg-blue-900/30 rounded border border-blue-800/50">Editar</button>
+                                <button onclick="deletarPagamento('${p.id}')" class="text-red-400 hover:text-red-300 text-xs px-2 py-1 bg-red-900/30 rounded border border-red-800/50">Excluir</button>
+                            </div>
+                        ` : '';
+                        
+                        linhasHistorico += `
+                            <div class="flex justify-between items-center py-2 border-b border-gray-700/50 last:border-0 text-gray-300">
+                                <div class="flex items-center gap-4">
+                                    <span class="bg-gray-700 px-2 py-1 rounded text-xs">${dataFormatada}</span>
+                                    <span>R$ ${p.valor.toFixed(2)} <span class="text-xs text-gray-500 ml-1">(${p.metodo})</span></span>
+                                </div>
+                                ${btnAcoes}
+                            </div>
+                        `;
+                    });
+                }
+
+                const trDetail = document.createElement('tr');
+                trDetail.id = `history-${idUnico}`;
+                trDetail.className = 'hidden history-row';
+                trDetail.innerHTML = `
+                    <td colspan="4" class="p-0">
+                        <div class="p-4 border-l-2 border-blue-500 ml-4 mb-2 mt-1 rounded-r-lg bg-gray-800/50 shadow-inner">
+                            <p class="text-xs text-gray-400 font-bold mb-3 uppercase tracking-wider">Histórico de Lançamentos</p>
+                            ${linhasHistorico}
+                        </div>
+                    </td>
+                `;
+                tabelaStatus.appendChild(trDetail);
+            }
+        }
+    </script>
+</body>
+</html>
