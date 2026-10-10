@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestão Financeira - Retiro R119</title>
+    <title>Pagamento do Retiro — Redes e Células</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
@@ -21,6 +21,22 @@
         .expandable-row { cursor: pointer; transition: background-color 0.2s; }
         .expandable-row:hover { background-color: #2d3748; }
         .history-row { background-color: #1a202c; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .admin-aviso:empty {
+            display: none;
+        }
+
+        .admin-aviso:not(:empty) {
+            background-color: #422006;
+            border: 2px solid #fbbf24;
+            border-radius: 10px;
+            color: #fef3c7;
+            padding: 16px;
+            font-size: 16px;
+            font-weight: 700;
+            line-height: 1.5;
+        }
     </style>
 </head>
 <body class="p-4 sm:p-8 flex flex-col items-center min-h-screen">
@@ -31,44 +47,314 @@
         <header class="flex flex-col md:flex-row justify-between items-center bg-gray-900 p-6 rounded-xl border border-gray-800 space-y-4 md:space-y-0">
             <div>
                 <h1 class="text-2xl sm:text-3xl font-bold text-white">Pagamento do Retiro</h1>
-                <p class="text-sm text-gray-400 mt-1">Gestão Financeira - Célula R119</p>
+                <p class="text-sm text-gray-400 mt-1">Gestão financeira por Rede e Célula</p>
             </div>
             
             <div id="auth-section" class="flex flex-col items-end">
-                <button id="btn-login" class="btn-google">
+                <button disabled aria-disabled="true" id="btn-login" class="btn-google">
                     <img src="https://www.svgrepo.com/show/475656/google-color.svg" class="w-5 h-5" alt="Google">
                     Acesso da Liderança
                 </button>
                 <div id="user-info" class="hidden flex items-center gap-4">
                     <span id="user-email" class="text-sm text-green-400 font-semibold"></span>
-                    <button id="btn-logout" class="text-sm text-red-400 hover:underline">Sair</button>
+                    <button disabled aria-disabled="true" id="btn-logout" class="text-sm text-red-400 hover:underline">Sair</button>
                 </div>
             </div>
         </header>
+
+
+        <!-- Etapa 1: somente estrutura visual; sem consultas ou alterações no Firebase. -->
+        <aside class="p-4 rounded-xl border border-amber-600 bg-amber-950 text-amber-100" role="note">
+            <strong>Controle de pagamentos do retiro.</strong>
+Selecione a Rede e a Célula para consultar os membros e pagamentos.
+Confira o destino antes de confirmar um cadastro ou lançamento.
+        </aside>
+
+        <section class="container-card p-6 space-y-4" aria-labelledby="titulo-filtros">
+            <h2 id="titulo-filtros" class="text-xl font-bold text-white">Rede e Célula</h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label for="filtro-rede" class="block text-sm text-gray-400 mb-1">Rede</label>
+                    <select id="filtro-rede" name="redeId" class="input-field" aria-describedby="ajuda-filtros">
+                        <option value="">Todas as redes</option>
+                        <option value="rede_8" selected>Rede 8</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="filtro-celula" class="block text-sm text-gray-400 mb-1">Célula</label>
+                    <select id="filtro-celula" name="celulaId" class="input-field" aria-describedby="ajuda-filtros">
+                        <option value="" selected>Todas as células</option>
+                        <option value="rede_8_r5" data-rede-id="rede_8">Refúgio R5</option>
+                        <option value="rede_8_r10" data-rede-id="rede_8">Refúgio R10</option>
+                        <option value="rede_8_r27" data-rede-id="rede_8">Refúgio R27</option>
+                        <option value="rede_8_r60" data-rede-id="rede_8">Refúgio R60</option>
+                        <option value="rede_8_r71" data-rede-id="rede_8">Refúgio R71</option>
+                        <option value="rede_8_r119" data-rede-id="rede_8">Refúgio R119</option>
+                        <option value="rede_8_r124" data-rede-id="rede_8">Refúgio R124</option>
+                        <option value="rede_8_r143" data-rede-id="rede_8">Refúgio R143</option>
+                        <option value="rede_8_r184" data-rede-id="rede_8">Refúgio R184</option>
+                    </select>
+                </div>
+            </div>
+            <p id="ajuda-filtros" class="text-sm text-gray-400">Na próxima etapa, a escolha da Rede definirá as células disponíveis e atualizará os totais e a tabela. As opções também respeitarão o acesso de cada líder.</p>
+            <p
+    id="contexto-selecionado"
+    class="text-sm font-semibold text-green-400"
+    aria-live="polite"
+></p>
+        </section>
+
+<!-- Administração: o JavaScript controlará a exibição. -->
+<section
+    id="painel-admin"
+    class="hidden container-card p-6 space-y-4"
+    aria-labelledby="titulo-admin"
+>
+    <h2 id="titulo-admin" class="text-xl font-bold text-white">
+        Administração de Redes e Células
+    </h2>
+
+    <form id="form-rede" class="hidden space-y-4">
+        <div>
+            <label
+                for="nova-rede-nome"
+                class="block text-sm text-gray-400 mb-1"
+            >
+                Nome da nova Rede
+            </label>
+
+            <input
+                id="nova-rede-nome"
+                type="text"
+                class="input-field"
+                placeholder="Ex: Rede 9"
+                maxlength="80"
+                required
+            >
+        </div>
+
+        <button
+            id="btn-cadastrar-rede"
+            type="submit"
+            class="btn-secondary"
+            disabled
+        >
+            Cadastrar Rede
+        </button>
+    </form>
+<div id="gestao-status-redes" class="hidden space-y-3">
+    <h3 class="text-lg font-semibold text-white">
+        Redes participantes
+    </h3>
+
+    <p class="text-sm text-gray-400">
+        Desativar uma Rede impede novos cadastros e pagamentos nela.
+        Os registros anteriores serão preservados.
+    </p>
+
+    <label for="rede-alterar-status"
+           class="block text-sm text-gray-400">
+        Rede que deseja alterar
+    </label>
+
+    <select id="rede-alterar-status"
+            class="input-field"
+            disabled>
+        <option value="">Carregando redes…</option>
+    </select>
+
+    <button id="btn-alterar-status-rede"
+            type="button"
+            class="btn-secondary"
+            disabled>
+        Selecione uma Rede
+    </button>
+</div>
+    <hr class="border-gray-700">
+
+    <form id="form-celulas-lote" class="space-y-4">
+        <div>
+            <label
+                for="cadastro-celulas-rede"
+                class="block text-sm text-gray-400 mb-1"
+            >
+                Rede que receberá as células
+            </label>
+
+            <select
+                id="cadastro-celulas-rede"
+                class="input-field"
+                required
+            >
+                <option value="">Selecione a Rede</option>
+            </select>
+        </div>
+
+        <div>
+            <label
+                for="novas-celulas"
+                class="block text-sm text-gray-400 mb-1"
+            >
+                Códigos das células
+            </label>
+
+            <textarea
+                id="novas-celulas"
+                class="input-field"
+                rows="3"
+                placeholder="Ex: R5, R10, R27"
+                aria-describedby="ajuda-cadastro-celulas"
+                required
+            ></textarea>
+
+            <p
+                id="ajuda-cadastro-celulas"
+                class="text-sm text-gray-400 mt-2"
+            >
+                Separe os códigos por vírgulas ou por linhas.
+                Antes de salvar, você confirmará a Rede e as células.
+            </p>
+        </div>
+
+        <button
+            id="btn-cadastrar-celulas"
+            type="submit"
+            class="btn-primary"
+            disabled
+        >
+            Revisar cadastro das células
+        </button>
+    </form>
+
+    <p
+        id="admin-mensagem"
+        class="admin-aviso"
+        role="status"
+        aria-live="polite"
+    ></p>
+</section>
+
+        <!-- Gerenciamento de acessos: somente administrador -->
+<section
+  id="painel-acessos"
+  class="hidden mb-6 rounded-xl border border-slate-700 bg-slate-800 p-5"
+>
+  <h2 class="mb-2 text-xl font-bold text-white">
+    Gerenciar acessos
+  </h2>
+
+  <p class="mb-4 text-sm text-slate-300">
+    Selecione uma pessoa e as células que ela poderá gerenciar.
+    Todos os usuários conectados podem consultar os dados.
+  </p>
+
+  <form id="form-acessos" class="space-y-4">
+    <div>
+      <label for="acesso-usuario" class="mb-1 block text-sm text-white">
+        Pessoa
+      </label>
+
+      <select
+        id="acesso-usuario"
+        class="w-full rounded-lg border border-slate-600 bg-slate-900 p-3 text-white"
+        required
+        disabled
+      >
+        <option value="">Carregando usuários…</option>
+      </select>
+    </div>
+
+    <div>
+      <label for="acesso-rede" class="mb-1 block text-sm text-white">
+        Rede
+      </label>
+
+      <select
+        id="acesso-rede"
+        class="w-full rounded-lg border border-slate-600 bg-slate-900 p-3 text-white"
+        required
+        disabled
+      >
+        <option value="">Selecione uma Rede</option>
+      </select>
+    </div>
+
+    <fieldset>
+      <legend class="mb-2 text-sm font-semibold text-white">
+        Células autorizadas para cadastrar e editar membros e pagamentos
+      </legend>
+
+      <div id="acesso-celulas" class="space-y-2 text-sm text-slate-300">
+        Selecione uma Rede para listar as células.
+      </div>
+    </fieldset>
+
+    <label class="flex items-center gap-2 text-sm text-white">
+      <input
+        id="acesso-cadastrar-celulas"
+        type="checkbox"
+        class="h-4 w-4"
+      >
+      Permitir cadastrar novas células na Rede selecionada
+    </label>
+
+    <p class="text-sm text-slate-300">
+      Para retirar as autorizações, use “Revogar acesso”.
+      A pessoa continuará podendo consultar os dados.
+    </p>
+
+    <div class="flex flex-wrap gap-3">
+      <button
+        id="btn-salvar-acesso"
+        type="submit"
+        class="rounded-lg bg-blue-600 px-4 py-3 font-semibold text-white disabled:opacity-50"
+        disabled
+      >
+        Salvar autorizações
+      </button>
+
+      <button
+        id="btn-revogar-acesso"
+        type="button"
+        class="rounded-lg bg-red-700 px-4 py-3 font-semibold text-white disabled:opacity-50"
+        disabled
+      >
+        Revogar acesso
+      </button>
+    </div>
+
+    <p
+      id="acesso-mensagem"
+      role="status"
+      aria-live="polite"
+      class="text-sm text-slate-200"
+    ></p>
+  </form>
+</section>
 
         <!-- KPIs Gerais -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div class="container-card p-5 border-l-4 border-green-500 flex justify-between items-center">
                 <div>
-                    <p class="text-sm text-gray-400">Total Arrecadado (R119)</p>
-                    <h3 id="kpi-total" class="text-3xl font-bold text-white">R$ 0,00</h3>
+                    <p class="text-sm text-gray-400">Total arrecadado no filtro selecionado</p>
+                    <h3 id="kpi-total" class="text-3xl font-bold text-white">—</h3>
                 </div>
                 <div class="text-green-500 text-4xl">💰</div>
             </div>
             <div class="container-card p-5 border-l-4 border-blue-500">
-                <p class="text-sm text-gray-400 mb-2">Progresso Geral da Célula</p>
+                <p class="text-sm text-gray-400 mb-2">Progresso do grupo selecionado</p>
                 <div class="flex items-center space-x-3">
                     <div class="w-full bg-gray-700 rounded-full h-3">
                         <div id="kpi-progress-bar" class="bg-blue-500 h-3 rounded-full transition-all duration-500" style="width: 0%"></div>
                     </div>
-                    <span id="kpi-progress-text" class="text-sm font-bold text-white">0%</span>
+                    <span id="kpi-progress-text" class="text-sm font-bold text-white">—</span>
                 </div>
             </div>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
             
-            <!-- Coluna 1: Formulários (Só aparecem se logado) -->
+            <!-- Formulários visíveis apenas para conferir o layout nesta etapa. -->
             <div id="form-container" class="hidden lg:col-span-1 space-y-6 self-start">
                 
                 <!-- Cadastrar Novo Pagamento -->
@@ -76,34 +362,65 @@
                     <h2 class="text-xl font-bold text-white border-b border-gray-700 pb-2">Novo Pagamento</h2>
                     <form id="form-pagamento" class="space-y-4">
                         <div>
-                            <label class="block text-sm text-gray-400 mb-1">Nome do Membro</label>
-                            <input type="text" id="nome" class="input-field" placeholder="Ex: Mariana" required>
-                        </div>
+    <label for="pagamento-membro"
+           class="block text-sm text-gray-400 mb-1">
+        Membro que está pagando
+    </label>
+
+    <select id="pagamento-membro"
+            class="input-field"
+            aria-describedby="ajuda-pagamento-membro"
+            disabled
+            required>
+        <option value="">Selecione uma Rede e uma Célula</option>
+    </select>
+
+    <p id="ajuda-pagamento-membro"
+       class="text-sm text-gray-400 mt-2">
+        Escolha a Rede e a Célula nos filtros acima.
+        Depois, selecione o membro.
+    </p>
+</div>
                         <div>
-                            <label class="block text-sm text-gray-400 mb-1">WhatsApp (Opcional)</label>
+                            <label for="whatsapp" class="block text-sm text-gray-400 mb-1">WhatsApp (Opcional)</label>
                             <input type="tel" id="whatsapp" class="input-field" placeholder="91999999999">
                         </div>
                         <div>
-                            <label class="block text-sm text-gray-400 mb-1">Valor Pago (R$)</label>
+                            <label for="valor" class="block text-sm text-gray-400 mb-1">Valor Pago (R$)</label>
                             <input type="number" id="valor" class="input-field" placeholder="Ex: 65" step="0.01" required>
                         </div>
                         <div>
-                            <label class="block text-sm text-gray-400 mb-1">Forma</label>
+    <label for="data-pagamento"
+           class="block text-sm text-gray-400 mb-1">
+        Data em que o pagamento foi recebido
+    </label>
+
+    <input type="date"
+           id="data-pagamento"
+           class="input-field"
+           required>
+</div>
+                        <div>
+                            <label for="metodo" class="block text-sm text-gray-400 mb-1">Forma</label>
                             <select id="metodo" class="input-field" required>
                                 <option value="PIX">PIX</option>
                                 <option value="Dinheiro">Dinheiro</option>
                             </select>
                         </div>
                         <input type="hidden" id="edit-pagamento-id" value="">
-                        <button type="submit" id="btn-submit-pagamento" class="btn-primary mt-4">Registrar Pagamento</button>
-                        <button type="button" id="btn-cancel-edit" class="hidden w-full mt-2 py-2 border border-gray-500 rounded-lg text-gray-300 hover:bg-gray-700 transition">Cancelar Edição</button>
+                        <button disabled aria-disabled="true" type="submit" id="btn-submit-pagamento" class="btn-primary mt-4">Registrar Pagamento</button>
+                        <p id="pagamento-mensagem"
+   class="admin-aviso"
+   role="status"
+   aria-live="polite"></p>
+                        <button disabled aria-disabled="true" type="button" id="btn-cancel-edit" class="hidden w-full mt-2 py-2 border border-gray-500 rounded-lg text-gray-300 hover:bg-gray-700 transition">Cancelar Edição</button>
                     </form>
 
                     <!-- Área WhatsApp -->
                     <div id="area-whatsapp" class="hidden mt-6 p-4 bg-gray-800 rounded-lg text-center border border-gray-600">
                         <p class="text-green-400 font-bold mb-2">✅ Salvo no Sistema!</p>
                         <a id="btn-enviar-wa" href="#" target="_blank" class="btn-whatsapp">📲 Enviar via WhatsApp</a>
-                        <button id="btn-novo-registro" class="w-full mt-3 py-2 border border-gray-500 rounded-lg text-gray-300 hover:bg-gray-700 transition">Fechar</button>
+                        <button disabled aria-disabled="true" id="btn-novo-registro" class="w-full mt-3 py-2 border border-gray-500 rounded-lg text-gray-300 hover:bg-gray-700 transition">Fechar</button>
                     </div>
                 </div>
 
@@ -111,37 +428,69 @@
                 <div class="container-card p-6 space-y-4">
                     <h2 class="text-xl font-bold text-white border-b border-gray-700 pb-2">Adicionar à Célula</h2>
                     <form id="form-membro" class="space-y-4">
-                        <div>
-                            <label class="block text-sm text-gray-400 mb-1">Nome do Membro</label>
-                            <input type="text" id="novo-membro-nome" class="input-field" placeholder="Ex: Carlos" required>
-                        </div>
-                        <button type="submit" class="btn-secondary">Cadastrar na Célula</button>
-                    </form>
+    <p id="destino-membro"
+       class="text-sm font-semibold text-yellow-300"
+       aria-live="polite">
+        Selecione uma Rede e uma Célula nos filtros acima.
+    </p>
+
+    <div>
+        <label for="novo-membro-nome"
+               class="block text-sm text-gray-400 mb-1">
+            Nome do Membro
+        </label>
+
+        <input type="text"
+               id="novo-membro-nome"
+               class="input-field"
+               placeholder="Ex: Carlos"
+               maxlength="120"
+               required>
+    </div>
+
+    <button id="btn-cadastrar-membro"
+            disabled
+            aria-disabled="true"
+            type="submit"
+            class="btn-secondary">
+        Cadastrar na Célula
+    </button>
+
+    <p id="membro-mensagem"
+       class="admin-aviso"
+       role="status"
+       aria-live="polite"></p>
+</form>
                 </div>
 
             </div>
 
-            <!-- Coluna 2: Tabela de Status (Visível para todos) -->
-            <div id="table-container" class="container-card p-6 lg:col-span-3 space-y-6">
+            <!-- A autorização e o carregamento da tabela serão implementados em JavaScript. -->
+            <div id="table-container" class="container-card p-6 lg:col-span-2 space-y-6">
                 <div class="flex justify-between items-center border-b border-gray-700 pb-2">
                     <h2 class="text-xl font-bold text-white">Acompanhamento Individual</h2>
                     <span class="text-sm bg-gray-800 px-3 py-1 rounded-full text-gray-300 border border-gray-700">Meta: R$ 450,00</span>
                 </div>
                 
-                <p class="text-xs text-gray-400 mb-2">💡 Clique no nome do membro para ver o histórico ou gerenciar pagamentos.</p>
+                <p class="text-xs text-gray-400 mb-2">
+    Os membros e pagamentos são atualizados automaticamente.
+    Abra o histórico abaixo de cada membro para conferir os lançamentos.
+</p>
                 
                 <div class="overflow-x-auto">
                     <table class="w-full text-left border-collapse">
                         <thead>
                             <tr class="border-b border-gray-700 text-gray-400 text-sm bg-gray-800">
                                 <th class="py-3 px-3 rounded-tl-lg">Membro</th>
+                                <th class="py-3 px-3">Rede</th>
+                                <th class="py-3 px-3">Célula</th>
                                 <th class="py-3 px-3 text-center">Total Pago</th>
                                 <th class="py-3 px-3 text-center">Falta</th>
                                 <th class="py-3 px-3 text-center rounded-tr-lg">Progresso</th>
                             </tr>
                         </thead>
                         <tbody id="tabela-status" class="text-gray-200 text-sm">
-                            <!-- Inserido via JS -->
+                            <tr><td colspan="6" class="py-8 px-3 text-center text-gray-400">Prévia da interface. Nenhum dado financeiro foi carregado.</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -149,307 +498,132 @@
 
         </div>
     </main>
+    <dialog
+    id="dialog-editar-membro"
+    class="container-card p-6 text-white w-full max-w-lg"
+    aria-labelledby="titulo-editar-membro"
+>
+    <form id="form-editar-membro" class="space-y-4">
+        <h2 id="titulo-editar-membro" class="text-xl font-bold">
+            Editar nome do membro
+        </h2>
 
-    <!-- Scripts -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, updateDoc, doc, onSnapshot, query, orderBy, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        <p
+            id="editar-membro-contexto"
+            class="text-sm text-yellow-300"
+        ></p>
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyDhleRcRHjEUmRRn638R5-L4B83t0HLLT4",
-            authDomain: "gestao-de-retiro---redes.firebaseapp.com",
-            projectId: "gestao-de-retiro---redes",
-            storageBucket: "gestao-de-retiro---redes.firebasestorage.app",
-            messagingSenderId: "1035765137992",
-            appId: "1:1035765137992:web:faafa994c696ad0467ce7d",
-            measurementId: "G-C0L89FE4X1"
-        };
+        <div>
+            <label
+                for="editar-membro-nome"
+                class="block text-sm text-gray-400 mb-1"
+            >
+                Nome do membro
+            </label>
 
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-        const provider = new GoogleAuthProvider();
-        
-        const META_RETIRO = 450.00;
-        let isLider = false;
-        let todosPagamentos = [];
-        let todosMembros = [];
+            <input
+                id="editar-membro-nome"
+                type="text"
+                class="input-field"
+                maxlength="120"
+                autocomplete="off"
+                required
+            >
+        </div>
 
-        const btnLogin = document.getElementById('btn-login');
-        const btnLogout = document.getElementById('btn-logout');
-        const userInfo = document.getElementById('user-info');
-        const userEmail = document.getElementById('user-email');
-        const formContainer = document.getElementById('form-container');
-        const tableContainer = document.getElementById('table-container');
+        <p class="text-sm text-gray-400">
+            Os pagamentos e o histórico continuarão vinculados
+            a este membro.
+        </p>
 
-        btnLogin.addEventListener('click', async () => {
-            try { await signInWithPopup(auth, provider); } 
-            catch (error) { console.error("Erro no login", error); alert("Erro ao logar."); }
-        });
+        <p
+            id="editar-membro-mensagem"
+            class="admin-aviso"
+            role="status"
+            aria-live="polite"
+        ></p>
 
-        btnLogout.addEventListener('click', () => { signOut(auth); });
+        <button
+            id="btn-salvar-membro-edicao"
+            type="submit"
+            class="btn-primary"
+            disabled
+        >
+            Salvar nome
+        </button>
 
-        onAuthStateChanged(auth, (user) => {
-            if (user) {
-                isLider = true;
-                btnLogin.classList.add('hidden');
-                userInfo.classList.remove('hidden');
-                userEmail.textContent = user.email;
-                formContainer.classList.remove('hidden');
-                tableContainer.classList.replace('lg:col-span-3', 'lg:col-span-2');
-            } else {
-                isLider = false;
-                btnLogin.classList.remove('hidden');
-                userInfo.classList.add('hidden');
-                formContainer.classList.add('hidden');
-                tableContainer.classList.replace('lg:col-span-2', 'lg:col-span-3');
-            }
-            atualizarTabela();
-        });
+        <button
+            id="btn-fechar-membro-edicao"
+            type="button"
+            class="btn-secondary"
+        >
+            Cancelar
+        </button>
+    </form>
+</dialog>
+    <dialog id="dialog-editar-pagamento"
+        class="container-card p-6 text-white w-full max-w-lg">
+    <form id="form-editar-pagamento" class="space-y-4">
+        <h2 class="text-xl font-bold">Editar pagamento</h2>
 
-        // Escutar Pagamentos
-        onSnapshot(query(collection(db, "pagamentos_retiro"), orderBy("data", "desc")), (snapshot) => {
-            todosPagamentos = [];
-            snapshot.forEach((doc) => {
-                todosPagamentos.push({ id: doc.id, ...doc.data() });
-            });
-            atualizarTabela();
-        });
+        <p id="editar-pagamento-contexto"
+           class="text-sm text-yellow-300"></p>
 
-        // Escutar Membros da Célula
-        onSnapshot(query(collection(db, "membros_celula"), orderBy("nome", "asc")), (snapshot) => {
-            todosMembros = [];
-            snapshot.forEach((doc) => {
-                todosMembros.push({ id: doc.id, ...doc.data() });
-            });
-            atualizarTabela();
-        });
+        <input type="hidden" id="editar-pagamento-id">
 
-        // Cadastrar Novo Membro
-        const formMembro = document.getElementById('form-membro');
-        formMembro.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const nomeMembro = document.getElementById('novo-membro-nome').value.trim();
-            try {
-                await addDoc(collection(db, "membros_celula"), { nome: nomeMembro });
-                document.getElementById('novo-membro-nome').value = '';
-                alert("Membro adicionado à célula com sucesso!");
-            } catch (error) {
-                console.error("Erro ao cadastrar membro:", error);
-                alert("Erro ao cadastrar membro.");
-            }
-        });
+        <div>
+            <label for="editar-pagamento-valor">Valor pago (R$)</label>
+            <input id="editar-pagamento-valor"
+                   type="number"
+                   class="input-field"
+                   min="0.01"
+                   step="0.01"
+                   required>
+        </div>
 
-        // Salvar ou Editar Pagamento
-        const formPagamento = document.getElementById('form-pagamento');
-        const areaWhatsapp = document.getElementById('area-whatsapp');
-        const btnEnviarWa = document.getElementById('btn-enviar-wa');
-        const editPagamentoId = document.getElementById('edit-pagamento-id');
-        const btnSubmitPagamento = document.getElementById('btn-submit-pagamento');
-        const btnCancelEdit = document.getElementById('btn-cancel-edit');
+        <div>
+            <label for="editar-pagamento-data">Data do recebimento</label>
+            <input id="editar-pagamento-data"
+                   type="date"
+                   class="input-field"
+                   required>
+        </div>
 
-        formPagamento.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const nome = document.getElementById('nome').value.trim();
-            const whatsapp = document.getElementById('whatsapp').value.replace(/\D/g, '');
-            const valor = parseFloat(document.getElementById('valor').value);
-            const metodo = document.getElementById('metodo').value;
-            const idEditando = editPagamentoId.value;
+        <div>
+            <label for="editar-pagamento-metodo">Forma</label>
+            <select id="editar-pagamento-metodo" class="input-field">
+                <option value="PIX">PIX</option>
+                <option value="Dinheiro">Dinheiro</option>
+            </select>
+        </div>
 
-            try {
-                if (idEditando) {
-                    // Atualizar pagamento existente
-                    await updateDoc(doc(db, "pagamentos_retiro", idEditando), {
-                        nome: nome,
-                        whatsapp: whatsapp,
-                        valor: valor,
-                        metodo: metodo
-                    });
-                    alert("Pagamento atualizado com sucesso!");
-                    resetarFormularioEdicao();
-                } else {
-                    // Criar novo pagamento
-                    await addDoc(collection(db, "pagamentos_retiro"), {
-                        nome: nome,
-                        whatsapp: whatsapp,
-                        valor: valor,
-                        metodo: metodo,
-                        celula: "R119",
-                        data: new Date().toISOString()
-                    });
+        <p id="editar-pagamento-mensagem"
+           class="admin-aviso"
+           role="status"></p>
 
-                    // Garantir que o membro também conste na lista de membros da célula
-                    const existeNaLista = todosMembros.some(m => m.nome.toLowerCase() === nome.toLowerCase());
-                    if (!existeNaLista) {
-                        await addDoc(collection(db, "membros_celula"), { nome: nome });
-                    }
+        <button id="btn-salvar-edicao"
+                type="submit"
+                class="btn-primary"
+                disabled>
+            Salvar alterações
+        </button>
 
-                    if (whatsapp) {
-                        const totalJaPago = todosPagamentos
-                            .filter(p => p.nome.toLowerCase() === nome.toLowerCase())
-                            .reduce((acc, curr) => acc + curr.valor, 0) + valor; 
-                        const saldoDevedor = Math.max(META_RETIRO - totalJaPago, 0);
+        <button id="btn-fechar-edicao"
+                type="button"
+                class="btn-secondary">
+            Cancelar
+        </button>
+    </form>
+</dialog>
 
-                        const mensagem = `Olá, *${nome}*! \nConfirmamos o registro do seu pagamento para o *Retiro* da célula R119.\n\n- *Valor recebido:* R$ ${valor.toFixed(2).replace('.', ',')}\n- *Total já pago:* R$ ${totalJaPago.toFixed(2).replace('.', ',')} / R$ 450,00\n- *Falta:* R$ ${saldoDevedor.toFixed(2).replace('.', ',')}\n\nDeus abençoe!`;
-                        
-                        btnEnviarWa.href = `https://wa.me/55${whatsapp}?text=${encodeURIComponent(mensagem)}`;
-                        formPagamento.classList.add('hidden');
-                        areaWhatsapp.classList.remove('hidden');
-                    } else {
-                        formPagamento.reset();
-                        alert("Pagamento registrado com sucesso!");
-                    }
-                }
-            } catch (error) {
-                console.error("Erro ao salvar:", error); 
-                alert("Erro ao salvar.");
-            }
-        });
-
-        function resetarFormularioEdicao() {
-            formPagamento.reset();
-            editPagamentoId.value = '';
-            btnSubmitPagamento.textContent = "Registrar Pagamento";
-            btnCancelEdit.classList.add('hidden');
-        }
-
-        btnCancelEdit.addEventListener('click', resetarFormularioEdicao);
-
-        document.getElementById('btn-novo-registro').addEventListener('click', () => {
-            formPagamento.reset();
-            formPagamento.classList.remove('hidden');
-            areaWhatsapp.classList.add('hidden');
-        });
-
-        // Funções Globais de Ação
-        window.deletarPagamento = async (id) => {
-            if(confirm("Tem certeza que deseja apagar este pagamento?")) {
-                try {
-                    await deleteDoc(doc(db, "pagamentos_retiro", id));
-                } catch (error) {
-                    console.error("Erro ao deletar:", error); alert("Erro ao deletar.");
-                }
-            }
-        };
-
-        window.editarPagamento = (id, nome, whatsapp, valor, metodo) => {
-            document.getElementById('nome').value = nome;
-            document.getElementById('whatsapp').value = whatsapp || '';
-            document.getElementById('valor').value = valor;
-            document.getElementById('metodo').value = metodo;
-            editPagamentoId.value = id;
-            btnSubmitPagamento.textContent = "Salvar Alterações";
-            btnCancelEdit.classList.remove('hidden');
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        };
-
-        window.toggleHistory = (nomeId) => {
-            const row = document.getElementById(`history-${nomeId}`);
-            if(row) row.classList.toggle('hidden');
-        };
-
-        function atualizarTabela() {
-            const tabelaStatus = document.getElementById('tabela-status');
-            tabelaStatus.innerHTML = '';
-            
-            let somaGeral = 0;
-            const resumoMembros = {};
-
-            // 1. Inicializar com todos os membros cadastrados na célula (mesmo quem não pagou)
-            todosMembros.forEach(m => {
-                const nomeKey = m.nome.toUpperCase();
-                resumoMembros[nomeKey] = { nomeReal: m.nome, total: 0, historico: [], whatsapp: m.whatsapp || '' };
-            });
-
-            // 2. Processar pagamentos e vincular aos membros
-            todosPagamentos.forEach(p => {
-                const nomeKey = p.nome.toUpperCase();
-                somaGeral += p.valor;
-                
-                if (!resumoMembros[nomeKey]) {
-                    resumoMembros[nomeKey] = { nomeReal: p.nome, total: 0, historico: [], whatsapp: p.whatsapp || '' };
-                }
-                resumoMembros[nomeKey].total += p.valor;
-                resumoMembros[nomeKey].historico.push(p);
-            });
-
-            // Atualizar KPIs
-            document.getElementById('kpi-total').textContent = `R$ ${somaGeral.toFixed(2)}`;
-            const qtdMembros = Object.keys(resumoMembros).length;
-            const metaTotalGeral = qtdMembros > 0 ? qtdMembros * META_RETIRO : META_RETIRO;
-            const progressoGeral = Math.min((somaGeral / metaTotalGeral) * 100, 100).toFixed(1);
-            
-            document.getElementById('kpi-progress-bar').style.width = `${progressoGeral}%`;
-            document.getElementById('kpi-progress-text').textContent = `${progressoGeral}%`;
-
-            // Gerar Linhas da Tabela
-            for (const [key, dados] of Object.entries(resumoMembros)) {
-                const falta = Math.max(META_RETIRO - dados.total, 0);
-                const porcentagem = Math.min((dados.total / META_RETIRO) * 100, 100).toFixed(0);
-                let corBarra = porcentagem == 100 ? 'bg-green-500' : 'bg-blue-500';
-                const idUnico = key.replace(/\s+/g, '');
-
-                const tr = document.createElement('tr');
-                tr.className = 'border-b border-gray-800 expandable-row';
-                tr.onclick = () => toggleHistory(idUnico);
-                tr.innerHTML = `
-                    <td class="py-4 px-3 font-semibold capitalize flex items-center gap-2">
-                        <span class="text-xs text-gray-500">▶</span> ${dados.nomeReal.toLowerCase()}
-                    </td>
-                    <td class="py-4 px-3 text-center text-green-400 font-bold">R$ ${dados.total.toFixed(2)}</td>
-                    <td class="py-4 px-3 text-center text-red-400">R$ ${falta.toFixed(2)}</td>
-                    <td class="py-4 px-3">
-                        <div class="flex items-center justify-center space-x-2">
-                            <div class="w-full bg-gray-700 rounded-full h-2.5 max-w-[80px]">
-                                <div class="${corBarra} h-2.5 rounded-full" style="width: ${porcentagem}%"></div>
-                            </div>
-                            <span class="text-xs text-gray-400 w-8 text-right">${porcentagem}%</span>
-                        </div>
-                    </td>
-                `;
-                tabelaStatus.appendChild(tr);
-
-                // Histórico e botões de editar/excluir
-                let linhasHistorico = '';
-                if (dados.historico.length === 0) {
-                    linhasHistorico = `<p class="text-xs text-gray-500 py-2">Nenhum pagamento registrado para este membro ainda.</p>`;
-                } else {
-                    dados.historico.forEach(p => {
-                        const dataFormatada = p.data ? new Date(p.data).toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit'}) : '--/--';
-                        const btnAcoes = isLider ? `
-                            <div class="flex gap-2">
-                                <button onclick="editarPagamento('${p.id}', '${p.nome}', '${p.whatsapp || ''}', ${p.valor}, '${p.metodo}')" class="text-blue-400 hover:text-blue-300 text-xs px-2 py-1 bg-blue-900/30 rounded border border-blue-800/50">Editar</button>
-                                <button onclick="deletarPagamento('${p.id}')" class="text-red-400 hover:text-red-300 text-xs px-2 py-1 bg-red-900/30 rounded border border-red-800/50">Excluir</button>
-                            </div>
-                        ` : '';
-                        
-                        linhasHistorico += `
-                            <div class="flex justify-between items-center py-2 border-b border-gray-700/50 last:border-0 text-gray-300">
-                                <div class="flex items-center gap-4">
-                                    <span class="bg-gray-700 px-2 py-1 rounded text-xs">${dataFormatada}</span>
-                                    <span>R$ ${p.valor.toFixed(2)} <span class="text-xs text-gray-500 ml-1">(${p.metodo})</span></span>
-                                </div>
-                                ${btnAcoes}
-                            </div>
-                        `;
-                    });
-                }
-
-                const trDetail = document.createElement('tr');
-                trDetail.id = `history-${idUnico}`;
-                trDetail.className = 'hidden history-row';
-                trDetail.innerHTML = `
-                    <td colspan="4" class="p-0">
-                        <div class="p-4 border-l-2 border-blue-500 ml-4 mb-2 mt-1 rounded-r-lg bg-gray-800/50 shadow-inner">
-                            <p class="text-xs text-gray-400 font-bold mb-3 uppercase tracking-wider">Histórico de Lançamentos</p>
-                            ${linhasHistorico}
-                        </div>
-                    </td>
-                `;
-                tabelaStatus.appendChild(trDetail);
-            }
-        }
-    </script>
+    <!-- Próxima etapa: lógica em arquivo JavaScript separado. -->
+     <script type="module" src="./firebase-config.js"></script>
+     <script type="module" src="./filtros.js"></script>
+     <script type="module" src="./auth.js"></script>
+     <script type="module" src="./acessos.js"></script>
+     <script type="module" src="./admin.js"></script>
+     <script type="module" src="./membros.js"></script>
+     <script type="module" src="./tabela.js"></script>
+     <script type="module" src="./pagamentos.js"></script>
 </body>
 </html>
